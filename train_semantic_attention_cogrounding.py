@@ -234,6 +234,8 @@ def build_target(raw_coord, pred):
                 x[1] / (args.anchor_imsize/grid)) for x in anchors]
 
             ## Get shape of gt box
+            gw = gw.cpu()
+            gh = gh.cpu()
             gt_box = torch.FloatTensor(np.array([0, 0, gw, gh])).unsqueeze(0)
             ## Get shape of anchor box
             anchor_shapes = torch.FloatTensor(np.concatenate((np.zeros((len(scaled_anchors), 2)), np.array(scaled_anchors)), 1))
@@ -581,6 +583,9 @@ def train_epoch(train_loader, model, optimizer, epoch, size_average):
             gt_conf_list.append(gt_param[ii][:,:,4,:,:].contiguous().view(cur_batch_size,-1))
         pred_conf = torch.cat(pred_conf_list, dim=1)
         gt_conf = torch.cat(gt_conf_list, dim=1)
+
+        pred_conf = pred_conf.cpu()
+        gt_conf = gt_conf.cpu()
         accu_center = np.sum(np.array(pred_conf.max(1)[1] == gt_conf.max(1)[1], dtype=float))/cur_batch_size
         ## metrics
         miou.update(iou.data[0], imgs.size(0))
