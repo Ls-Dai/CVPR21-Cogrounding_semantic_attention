@@ -1,0 +1,1 @@
+python train_semantic_attention_cogrounding.py --data_root /dvmm-filer2/datasets/VID/Data/ --dataset VID --gpu 2,3 --savename VID_cogrounding_semantic_attn  --batch_size 4 --lstm -p 1

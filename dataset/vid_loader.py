@@ -148,6 +148,10 @@ def getChunk(img_path, num_frame_k=2):
     images = list()
     num_floor = int(numpy.floor(num_frame_k/2))
     num_ceil = int(numpy.ceil(num_frame_k/2))
+
+    # counter
+    count = 0
+
     for vid_idx in range(len(vid_list)):
         vid_len = len(vid_list[vid_idx])
         for img_idx in range(vid_len):
@@ -156,16 +160,33 @@ def getChunk(img_path, num_frame_k=2):
             bboxs = list()
             annotations = list()
             for i in range(img_idx - num_floor, img_idx + num_ceil):
-                    img_path = vid_list[vid_idx][numpy.clip(i,0,vid_len-1)][0]
+                img_path = vid_list[vid_idx][numpy.clip(i,0,vid_len-1)][0]
+                img_path = "/dvmm-filer2/datasets/VID/Data" + img_path[6:]
+                # check availability
+                if osp.exists(img_path):
                     imgs_path.append(img_path)
                     bboxs.append(vid_list[vid_idx][numpy.clip(i,0,vid_len-1)][1])
                     annotations.append(vid_list[vid_idx][numpy.clip(i,0,vid_len-1)][2])
-
+                    count +=1
+                else:
+                    if "val" in img_path:
+                        img_path = img_path.replace("test", "val", 1)
+                    if osp.exists(img_path):
+                        imgs_path.append(img_path)
+                        bboxs.append(vid_list[vid_idx][numpy.clip(i,0,vid_len-1)][1])
+                        annotations.append(vid_list[vid_idx][numpy.clip(i,0,vid_len-1)][2])
+                        count +=1
+                    else:
+                        print("Missing data.")
+                        continue
+                count += 1
             chunk.append(imgs_path)
             chunk.append(bboxs) # bbox
             chunk.append(annotations) # annotation
             images.append(tuple(chunk))
 
+    # print count 
+    print("Case Stats: ", count)
     return images
 
 

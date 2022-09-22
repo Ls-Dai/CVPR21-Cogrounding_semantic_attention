@@ -130,3 +130,14 @@ dmypy.json
 
 # Mac Conf
 .DS_Store
+
+# logs 
+logs/
+
+# data
+data/
+cache/
+
+# model files
+saved_models/
+*.pth
