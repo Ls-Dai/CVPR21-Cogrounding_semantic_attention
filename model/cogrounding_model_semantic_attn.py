@@ -20,7 +20,8 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.modeling import BertModel
 # normalize the localization embedding
 
-from ..clip import clip
+# import transformers
+# from clip import clip
 
 def generate_coord(batch, height, width):
     # coord = Variable(torch.zeros(batch,8,height,width).cuda())
@@ -251,6 +252,9 @@ class grounding_model(nn.Module):
         ## [1024, 13, 13], [512, 26, 26], [256, 52, 52]
         batch_size = image.size(0)
         raw_fvisu = self.visumodel(image)
+        for ii in range(len(raw_fvisu)):
+            print(raw_fvisu[ii].shape)
+
         fvisu = []
         for ii in range(len(raw_fvisu)):
             fvisu.append(self.mapping_visu._modules[str(ii)](raw_fvisu[ii]))
