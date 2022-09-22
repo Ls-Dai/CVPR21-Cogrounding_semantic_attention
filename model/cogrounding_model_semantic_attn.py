@@ -20,6 +20,8 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.modeling import BertModel
 # normalize the localization embedding
 
+from ..clip import clip
+
 def generate_coord(batch, height, width):
     # coord = Variable(torch.zeros(batch,8,height,width).cuda())
     xv, yv = torch.meshgrid([torch.arange(0,height), torch.arange(0,width)])
