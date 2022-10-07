@@ -141,3 +141,6 @@ cache/
 # model files
 saved_models/
 *.pth
+
+# temp files
+*.txt

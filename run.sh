@@ -1,1 +1,2 @@
-CUDA_LAUNCH_BLOCKING=1 python train_semantic_attention_cogrounding.py --data_root /dvmm-filer2/datasets/VID/Data/ --dataset VID --gpu 0,1 --savename VID_cogrounding_semantic_attn  --batch_size 2 --lstm -p 1
+CUDA_VISIBLE_DEVICES=3 python train_semantic_attention_cogrounding.py --data_root /dvmm-filer2/datasets/VID/Data/ --dataset VID --gpu 0 --savename VID_cogrounding_semantic_attn  --batch_size 2 --lstm -p 1
+# CUDA_VISIBLE_DEVICES=3 python train_semantic_attention_cogrounding.py --data_root /dvmm-filer2/datasets/VID/Data/ --dataset VID --gpu 0 --savename VID_cogrounding_semantic_attn  --batch_size 2 -p 1

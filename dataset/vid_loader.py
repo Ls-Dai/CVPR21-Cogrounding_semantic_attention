@@ -142,6 +142,14 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
     return features
 
 def getChunk(img_path, num_frame_k=2):
+    images_conf_name = img_path.split('/')[-1]
+
+    if os.path.exists("./{}_images_list.txt".format(images_conf_name)):
+        with open("./{}_images_list.txt".format(images_conf_name), "r+") as f:
+            lines = f.read()
+        return eval(lines)
+    else:
+        pass 
     # img_path is actually a video-path
     vid_list = torch.load(img_path)
 
@@ -187,6 +195,10 @@ def getChunk(img_path, num_frame_k=2):
 
     # print count 
     print("Case Stats: ", count)
+
+    # dump images list
+    with open("{}_images_list.txt".format(images_conf_name), "w+") as f:
+        f.write(str(images))
     return images
 
 

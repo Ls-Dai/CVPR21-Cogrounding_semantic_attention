@@ -434,9 +434,9 @@ def main():
     print('Num of parameters:', sum([param.nelement() for param in model.parameters()]))
     logging.info('Num of parameters:%d'%int(sum([param.nelement() for param in model.parameters()])))
 
-    visu_param = model.module.visumodel.parameters()
+    visu_param = model.module.clip_encoder.parameters()
     rest_param = [param for param in model.parameters() if param not in visu_param]
-    visu_param = list(model.module.visumodel.parameters())
+    visu_param = list(model.module.clip_encoder.parameters())
     sum_visu = sum([param.nelement() for param in visu_param])
     sum_text = sum([param.nelement() for param in model.module.textmodel.parameters()])
     sum_fusion = sum([param.nelement() for param in rest_param]) - sum_text
@@ -545,6 +545,9 @@ def train_epoch(train_loader, model, optimizer, epoch, size_average):
 
         optimizer.zero_grad()
         loss.backward()
+        # debug 
+        # for name, params in model.named_parameters():
+        #     print(name, params.requires_grad, torch.sum(params.grad) if params.grad is not None else 0)
         optimizer.step()
         losses.update(loss.item(), imgs.size(0))
         yolo_losses.update(loss_yolo.item(), imgs.size(0))

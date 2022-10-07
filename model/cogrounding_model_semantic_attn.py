@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from unittest.mock import patch
 
 import torch
 import torch.nn as nn
@@ -20,8 +21,8 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.modeling import BertModel
 # normalize the localization embedding
 
-# import transformers
-# from clip import clip
+import transformers
+from model.clip_git import clip 
 
 def generate_coord(batch, height, width):
     # coord = Variable(torch.zeros(batch,8,height,width).cuda())
@@ -138,6 +139,7 @@ class PhraseAttention(nn.Module):
 
     return attn, weighted_emb
 
+
 class grounding_model(nn.Module):
     def __init__(self, corpus=None, emb_size=256, jemb_drop_out=0.1, bert_model='bert-base-uncased', \
      coordmap=True, leaky=False, dataset=None, light=False):
@@ -150,9 +152,24 @@ class grounding_model(nn.Module):
             self.textdim=768
         else:
             self.textdim=1024
+
+        # CLIP Vit
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        model, preprocess = clip.load("ViT-B/32", device=self.device)
+        self.clip_encoder = model
+        self.clip_preprocess = preprocess
+
+        self.length_map = nn.Sequential(
+            ConvBatchNormReLU(768, 2048, 1, 1, 0, 1, leaky=leaky),
+        )
+        self.multi_scale = nn.Sequential(OrderedDict([
+            ('0', ConvBatchNormReLU(2048, 1024, 1, 1, 0, 1, leaky=leaky)),
+            ('1', ConvBatchNormReLU(1024, 512, 1, 1, 0, 1, leaky=leaky)),
+            ('2', ConvBatchNormReLU(512, 256, 1, 1, 0, 1, leaky=leaky))
+        ]))
+        
         ## Visual model
-        self.visumodel = Darknet(config_path='./model/yolov3.cfg')
-        self.visumodel.load_weights('./saved_models/yolov3.weights')
         ## Text model
         if self.lstm:
             self.textdim, self.embdim=1024, 512
@@ -164,6 +181,8 @@ class grounding_model(nn.Module):
                                           input_dropout_p=0.2,
                                           variable_lengths=True)
         else:
+            # debug
+            self.textdim, self.embdim=768, 512
             self.textmodel = BertModel.from_pretrained(bert_model)
 
         self.temperature = 10.
@@ -251,9 +270,31 @@ class grounding_model(nn.Module):
         ## Visual Module
         ## [1024, 13, 13], [512, 26, 26], [256, 52, 52]
         batch_size = image.size(0)
-        raw_fvisu = self.visumodel(image)
-        for ii in range(len(raw_fvisu)):
-            print(raw_fvisu[ii].shape)
+        # raw_fvisu = self.visumodel(image)
+
+        image_cls, patch_features = self.clip_encoder.encode_image(image)
+        patch_features = patch_features.view(-1, 768, 8, 8)
+        patch_features = patch_features.type(torch.cuda.FloatTensor)
+        patch_features = self.length_map(patch_features)
+
+        raw_fvisu = []
+
+        
+        features_conv = self.multi_scale._modules['0'](patch_features)
+        features_ups = features_conv
+        # features_ups = F.upsample(features_conv, scale_factor=2)
+        raw_fvisu.append(features_ups)
+
+        features_conv = self.multi_scale._modules['1'](features_ups)
+        features_ups = F.upsample(features_conv, scale_factor=2)
+        raw_fvisu.append(features_ups)
+
+        features_conv = self.multi_scale._modules['2'](features_ups)
+        features_ups = F.upsample(features_conv, scale_factor=2)
+        raw_fvisu.append(features_ups)
+
+        # for ii in range(len(raw_fvisu)):
+        #     print(raw_fvisu[ii].shape)
 
         fvisu = []
         for ii in range(len(raw_fvisu)):
@@ -317,6 +358,7 @@ class grounding_model(nn.Module):
             max_len = (word_id != 0).sum(1).max().item()
             word_id = word_id[:, :max_len]
             raw_flang, context, embedded = self.textmodel(word_id)
+            print(361, raw_flang.shape)
         else:
             all_encoder_layers, _ = self.textmodel(word_id, \
                 token_type_ids=None, attention_mask=word_mask)
@@ -325,6 +367,7 @@ class grounding_model(nn.Module):
                  + all_encoder_layers[-3][:,0,:] + all_encoder_layers[-4][:,0,:])/4
             ## fix bert during training
             raw_flang = raw_flang.detach()
+            print(367, raw_flang.shape)
         flang = self.mapping_lang(raw_flang)
         
         flang = F.normalize(flang, p=2, dim=1)
@@ -352,6 +395,7 @@ class grounding_model(nn.Module):
         # context, embedded = self.textmodel(word_id)
 
         # subject attention
+        print(type(context), type(embedded), type(word_id))
         sub_attn, flang_attn = self.sub_attn(context, embedded, word_id) # batchsize x 512
         flang_attn = F.normalize(flang_attn, p=2, dim=1) # batchsize x 512
         flang_attn = flang_attn.unsqueeze(2) # batchsize x 512 x 1
@@ -449,7 +493,6 @@ class grounding_model(nn.Module):
             outbox[ii][:,:,4,:,:] = outbox[ii][:,:,4,:,:].clone() * sim_score_ * loc_score_
 
             outbox[ii] = outbox[ii].view(batch, 15, h, w)
-
 
         if self.training:
             return outbox, sim_score, loc_score, corr_feat, flang_attn
